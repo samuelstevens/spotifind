@@ -115,19 +115,8 @@ func (a *SimpleCliAuthenticator) AccessToken() (string, error) {
 	return a.accessToken, nil
 }
 
-func (a *SimpleCliAuthenticator) RefreshToken() (string, error) {
-	if a.refreshToken == "" {
-		err := a.authenticate()
-		if err != nil {
-			return "", err
-		}
-	}
-
-	return a.refreshToken, nil
-}
-
 func (a *SimpleCliAuthenticator) Refresh() error {
-	return fmt.Errorf("not implemented")
+	return fmt.Errorf("Refreshing token not implented yet")
 }
 
 type CachedAuthenticator struct {
@@ -135,20 +124,12 @@ type CachedAuthenticator struct {
 	CachePath     string
 }
 
-type credentials struct {
-	AccessToken  string
-	RefreshToken string
-}
-
-func (a *CachedAuthenticator) cacheCredentials(creds credentials) error {
-	if creds.AccessToken == "" {
-		return fmt.Errorf("AccessToken empty: %v\n", creds)
-	}
-	if creds.RefreshToken == "" {
-		return fmt.Errorf("RefreshToken empty: %v\n", creds)
+func (a *CachedAuthenticator) saveAccessToken(accessToken string) error {
+	if accessToken == "" {
+		return fmt.Errorf("Will not save empty access token")
 	}
 
-	b, err := json.Marshal(creds)
+	b, err := json.Marshal(accessToken)
 	if err != nil {
 		return fmt.Errorf("Could not convert credentials to json: %w", err)
 	}
@@ -161,8 +142,7 @@ func (a *CachedAuthenticator) cacheCredentials(creds credentials) error {
 }
 
 func (a *CachedAuthenticator) AccessToken() (string, error) {
-	var creds credentials
-
+	var accessToken string
 	contents, err := os.ReadFile(a.CachePath)
 	if err != nil {
 		// ask underlying Authenticator for the access token
@@ -170,33 +150,25 @@ func (a *CachedAuthenticator) AccessToken() (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("Could not get access token from root authenticator: %w", err)
 		}
-		creds.AccessToken = accessToken
+		a.saveAccessToken(accessToken)
 
-		refreshToken, err := a.Authenticator.RefreshToken()
+		return accessToken, nil
+	}
+	err = json.Unmarshal(contents, &accessToken)
+	if err != nil {
+		// remove file since it is corrupted
+    os.Remove(a.CachePath)
+		// ask underlying Authenticator for the access token
+		accessToken, err := a.Authenticator.AccessToken()
 		if err != nil {
-			return "", fmt.Errorf("Could not get refresh token from root authenticator: %w", err)
+			return "", fmt.Errorf("Could not get access token from root authenticator: %w", err)
 		}
-		creds.RefreshToken = refreshToken
-
-		a.cacheCredentials(creds)
+		a.saveAccessToken(accessToken)
 
 		return accessToken, nil
 	}
 
-	err = json.Unmarshal(contents, &creds)
-	if err != nil {
-		// remove file since it is corrupted
-		panic("handling corrupted files not implemented")
-		// ask underlying Authenticator for the access token
-		// accessToken, err := a.Authenticator.GetAccessToken()
-		// if err != nil {
-		// 	return "", fmt.Errorf("Could not get token from root authenticator: %w", err)
-		// }
-		// creds.AccessToken = accessToken
-		// a.cacheCredentials(creds)
-	}
-
-	if creds.AccessToken == "" {
+	if accessToken == "" {
 		// remove file since it is corrupted
 		os.Remove(a.CachePath)
 		// ask underlying Authenticator for the access token
@@ -204,18 +176,18 @@ func (a *CachedAuthenticator) AccessToken() (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("Could not get token from root authenticator: %w", err)
 		}
-		creds.AccessToken = accessToken
-		a.cacheCredentials(creds)
+		a.saveAccessToken(accessToken)
 		return accessToken, nil
 	}
 
-	return creds.AccessToken, nil
+	return accessToken, nil
 }
 
 func (a *CachedAuthenticator) Refresh() error {
-	panic("not implemented")
-}
+	err := a.Authenticator.Refresh()
+	if err != nil {
+		return fmt.Errorf("Root authenticator failed to refresh: %w", err)
+	}
 
-func (a *CachedAuthenticator) RefreshToken() (string, error) {
-	panic("not implemented")
+	return nil
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/samuelstevens/spotifind/core"
 	"io"
+	"log"
 	"net/http"
 )
 
@@ -14,7 +15,6 @@ const RedirectUri = "http://spotifind.com/auth"
 
 type Authenticator interface {
 	AccessToken() (string, error)
-	RefreshToken() (string, error)
 	Refresh() error
 }
 
@@ -83,8 +83,10 @@ func (p *SimpleSongProvider) GetSongs() ([]core.Song, error) {
 	// var result GetTrackResult
 	err = json.Unmarshal(body, &result)
 	if err != nil {
-
+		return nil, fmt.Errorf("Could not read json: %w", err)
 	}
 
-	return nil, nil
+	log.Printf("%+v\n", result)
+
+	return nil, fmt.Errorf("Get Songs not implemented yet")
 }

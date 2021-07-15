@@ -7,19 +7,27 @@ import (
 	"github.com/samuelstevens/spotifind/lyrics"
 	"github.com/samuelstevens/spotifind/spotify/api"
 	"github.com/samuelstevens/spotifind/spotify/auth"
-	"log"
 )
 
-func main() {
+func cli() (string, error) {
 	flag.Parse()
 	if flag.NArg() == 0 {
-		log.Fatalf("Must provide a lyric!\n")
+		return "", fmt.Errorf("Must provide a lyric!\n")
 	}
 
 	lyric := flag.Arg(0)
 
 	if lyric == "" {
-		log.Fatalf("Lyric must be non-empty!\n")
+		return "", fmt.Errorf("Lyric must be non-empty!\n")
+	}
+
+	return lyric, nil
+}
+
+func main() {
+	lyric, err := cli()
+	if err != nil {
+		fmt.Printf("%s\n", err)
 	}
 
 	fmt.Printf("Searching for songs with lyric '%s'\n", lyric)
@@ -34,7 +42,8 @@ func main() {
 
 	songs, err := core.FindSongsWithLyric(core.Lyric(lyric), &songProvider, &lyricProvider)
 	if err != nil {
-		log.Fatalf("Error finding songs: %v\n", err)
+		fmt.Printf("%v\n", err)
+		return
 	}
 
 	fmt.Printf("Lyric '%s' is in these songs: %v\n", lyric, songs)
