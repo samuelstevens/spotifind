@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/samuelstevens/spotifind/core"
 	"io"
-	"log"
 	"net/http"
 )
 
@@ -26,8 +25,14 @@ type Artist struct {
 	Name string `json:"name"`
 }
 
+type Track struct {
+	Name    string   `json:"name"`
+	Artists []Artist `json:"artists"`
+	Uri     string   `json:"uri"`
+}
+
 type Item struct {
-	Track core.Song `json:"track"`
+	Track Track `json:"track"`
 }
 
 type GetTrackResult struct {
@@ -35,23 +40,23 @@ type GetTrackResult struct {
 	Next   string `json:"next"`
 	Offset int    `json:"offset"`
 	Total  int    `json:"total"`
-	Songs  []Item `json:"items"`
+	Items  []Item `json:"items"`
 }
 
-func (p *SimpleSongProvider) GetSongs() ([]core.Song, error) {
+func (p *SimpleSongProvider) requestSongs(url string) ([]core.Song, string, error) {
 	if p.Authenticator == nil {
-		return nil, fmt.Errorf("%v needs non-nil authenticator!", p)
+		return nil, "", fmt.Errorf("%v needs non-nil authenticator!", p)
 	}
 	client := &http.Client{}
 
 	accessToken, err := p.Authenticator.AccessToken()
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
-	req, err := http.NewRequest("GET", "https://api.spotify.com/v1/me/tracks", nil)
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	req.Header.Add("Authorization", "Bearer "+accessToken)
@@ -60,34 +65,68 @@ func (p *SimpleSongProvider) GetSongs() ([]core.Song, error) {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
 		if resp.StatusCode == 401 {
-      fmt.Printf("Unauthorized: %+v\ngoing to refresh token\n", resp)
+			fmt.Printf("Unauthorized: %+v\ngoing to refresh token\n", resp)
 			if err = p.Authenticator.Refresh(); err != nil {
-				return nil, err
+				return nil, "", err
 			}
-			return p.GetSongs()
+			return p.requestSongs(url)
 		}
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
-	var result map[string]interface{}
-
-	// var result GetTrackResult
+	var result GetTrackResult
 	err = json.Unmarshal(body, &result)
 	if err != nil {
-		return nil, fmt.Errorf("Could not read json: %w", err)
+		return nil, "", fmt.Errorf("Could not read json: %w", err)
 	}
 
-	log.Printf("%+v\n", result)
+	songs := []core.Song{}
 
-	return nil, fmt.Errorf("Get Songs not implemented yet")
+	for _, item := range result.Items {
+		artists := []string{}
+		for _, artist := range item.Track.Artists {
+			artists = append(artists, artist.Name)
+		}
+
+		song := core.Song{
+			Title:   item.Track.Name,
+			Uri:     item.Track.Uri,
+			Artists: artists,
+		}
+
+		songs = append(songs, song)
+	}
+
+	return songs, result.Next, nil
+}
+
+func (p *SimpleSongProvider) GetSongs(out chan core.Song) {
+	nextUrl := "https://api.spotify.com/v1/me/tracks"
+
+	for nextUrl != "" {
+		var err error
+		var songs []core.Song
+
+		songs, nextUrl, err = p.requestSongs(nextUrl)
+		if err != nil {
+      fmt.Printf("Error in GetSongs: %s", err.Error())
+			close(out)
+		}
+
+		for _, song := range songs {
+			out <- song
+		}
+	}
+
+  close(out)
 }

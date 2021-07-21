@@ -1,7 +1,6 @@
 package core
 
 import (
-	"fmt"
 	"log"
 )
 
@@ -23,20 +22,18 @@ func (s *SongWithLyrics) HasLyric(lyric Lyric) bool {
 type Lyric string
 
 func FindSongsWithLyric(lyric Lyric, songProvider SongProvider, lyricProvider LyricProvider) ([]SongWithLyrics, error) {
-	songs, err := songProvider.GetSongs()
-	if err != nil {
-		return nil, fmt.Errorf("Could not get songs: %w", err)
-	}
+	songs := make(chan Song)
+	go songProvider.GetSongs(songs)
 
 	result := []SongWithLyrics{}
 
-	for _, song := range songs {
-		songWithLyrics, err := lyricProvider.GetLyrics(song)
+	for song := range songs {
+		songWithLyrics, err := lyricProvider.GetLyrics(&song)
 		if err != nil {
 			log.Printf("Could not get lyrics for song %v: %v", song, err)
 		}
 		if songWithLyrics.HasLyric(lyric) {
-			result = append(result, songWithLyrics)
+			result = append(result, *songWithLyrics)
 		}
 	}
 
@@ -44,9 +41,9 @@ func FindSongsWithLyric(lyric Lyric, songProvider SongProvider, lyricProvider Ly
 }
 
 type SongProvider interface {
-	GetSongs() ([]Song, error)
+	GetSongs(out chan Song)
 }
 
 type LyricProvider interface {
-	GetLyrics(song Song) (SongWithLyrics, error)
+	GetLyrics(song *Song) (*SongWithLyrics, error)
 }
