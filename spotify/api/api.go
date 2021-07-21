@@ -66,6 +66,7 @@ func (p *SimpleSongProvider) GetSongs() ([]core.Song, error) {
 
 	if resp.StatusCode != 200 {
 		if resp.StatusCode == 401 {
+      fmt.Printf("Unauthorized: %+v\ngoing to refresh token\n", resp)
 			if err = p.Authenticator.Refresh(); err != nil {
 				return nil, err
 			}

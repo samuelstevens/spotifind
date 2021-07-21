@@ -10,7 +10,14 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 )
+
+func postFormWithTimeout(url string, data url.Values, timeout time.Duration) (*http.Response, error) {
+	client := http.Client{Timeout: timeout}
+
+	return client.PostForm(url, data)
+}
 
 type SimpleCliAuthenticator struct {
 	accessToken  string
@@ -62,7 +69,7 @@ func (a *SimpleCliAuthenticator) authenticate() error {
 	}
 
 	// Request refresh and access tokens
-	resp, err := http.PostForm("https://accounts.spotify.com/api/token", postBody)
+	resp, err := postFormWithTimeout("https://accounts.spotify.com/api/token", postBody, time.Second * 5)
 	if err != nil {
 		return fmt.Errorf("Could not exchange access code for tokens: %w", err)
 	}
@@ -85,16 +92,13 @@ func (a *SimpleCliAuthenticator) authenticate() error {
 
 	err = json.Unmarshal(respBody, &result)
 	if err != nil {
-		return fmt.Errorf("Could not parse json: %w", err)
+		return fmt.Errorf("Could not parse json (%s): %w", string(respBody), err)
 	}
 
 	if result.AccessToken == "" {
 		return fmt.Errorf("Could not get access_token: %s", string(respBody))
 	}
 	a.accessToken = result.AccessToken
-	if a.accessToken == "" {
-		fmt.Println("FUCK THE THIRD")
-	}
 
 	if result.RefreshToken == "" {
 		return fmt.Errorf("Could not get refresh_token")
@@ -116,7 +120,58 @@ func (a *SimpleCliAuthenticator) AccessToken() (string, error) {
 }
 
 func (a *SimpleCliAuthenticator) Refresh() error {
-	return fmt.Errorf("Refreshing token not implented yet")
+	if a.accessToken == "" || a.refreshToken == "" {
+		err := a.authenticate()
+		if err != nil {
+			return err
+		}
+	}
+
+	// request a new accessToken
+	postBody := url.Values{
+		"grant_type":    {"refresh_token"},
+		"refresh_token": {a.refreshToken},
+		"client_id":     {api.ClientId},
+		"client_secret": {api.ClientSecret},
+	}
+
+	// Request refresh and access tokens
+	resp, err := postFormWithTimeout("https://accounts.spotify.com/api/token", postBody, time.Second * 5)
+	if err != nil {
+		return fmt.Errorf("Could not exchange refresh token for access token: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("Could not read body: %w", err)
+	}
+
+	type Resp struct {
+		AccessToken string `json:"access_token"`
+		TokenType   string `json:"token_type"`
+		Scope       string `json:"scope"`
+		ExpiresIn   int    `json:"expires_in"`
+	}
+
+	var result Resp
+
+	err = json.Unmarshal(respBody, &result)
+	if err != nil {
+		return fmt.Errorf("Could not parse json: %w", err)
+	}
+
+	if result.AccessToken == "" {
+		return fmt.Errorf("Could not get access_token: %s", string(respBody))
+	}
+
+  if a.accessToken == result.AccessToken {
+    return fmt.Errorf("New access token is the same: %s", a.accessToken)
+  }
+
+	a.accessToken = result.AccessToken
+
+	return nil
 }
 
 type CachedAuthenticator struct {
@@ -157,7 +212,7 @@ func (a *CachedAuthenticator) AccessToken() (string, error) {
 	err = json.Unmarshal(contents, &accessToken)
 	if err != nil {
 		// remove file since it is corrupted
-    os.Remove(a.CachePath)
+		os.Remove(a.CachePath)
 		// ask underlying Authenticator for the access token
 		accessToken, err := a.Authenticator.AccessToken()
 		if err != nil {
@@ -188,6 +243,16 @@ func (a *CachedAuthenticator) Refresh() error {
 	if err != nil {
 		return fmt.Errorf("Root authenticator failed to refresh: %w", err)
 	}
+
+  accessToken, err := a.Authenticator.AccessToken()
+  if err != nil {
+    return fmt.Errorf("Root authenticator failed to provide an access token: %w", err)
+  }
+
+  err = a.saveAccessToken(accessToken)
+  if err != nil {
+    fmt.Printf("Could not cache access token: %s", err.Error())
+  }
 
 	return nil
 }
