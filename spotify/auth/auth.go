@@ -4,13 +4,14 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"github.com/samuelstevens/spotifind/spotify/api"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/samuelstevens/spotifind/spotify/api"
 )
 
 func postFormWithTimeout(url string, data url.Values, timeout time.Duration) (*http.Response, error) {
@@ -69,7 +70,7 @@ func (a *SimpleCliAuthenticator) authenticate() error {
 	}
 
 	// Request refresh and access tokens
-	resp, err := postFormWithTimeout("https://accounts.spotify.com/api/token", postBody, time.Second * 5)
+	resp, err := postFormWithTimeout("https://accounts.spotify.com/api/token", postBody, time.Second*5)
 	if err != nil {
 		return fmt.Errorf("Could not exchange access code for tokens: %w", err)
 	}
@@ -136,7 +137,7 @@ func (a *SimpleCliAuthenticator) Refresh() error {
 	}
 
 	// Request refresh and access tokens
-	resp, err := postFormWithTimeout("https://accounts.spotify.com/api/token", postBody, time.Second * 5)
+	resp, err := postFormWithTimeout("https://accounts.spotify.com/api/token", postBody, time.Second*5)
 	if err != nil {
 		return fmt.Errorf("Could not exchange refresh token for access token: %w", err)
 	}
@@ -165,9 +166,9 @@ func (a *SimpleCliAuthenticator) Refresh() error {
 		return fmt.Errorf("Could not get access_token: %s", string(respBody))
 	}
 
-  if a.accessToken == result.AccessToken {
-    return fmt.Errorf("New access token is the same: %s", a.accessToken)
-  }
+	if a.accessToken == result.AccessToken {
+		return fmt.Errorf("New access token is the same: %s", a.accessToken)
+	}
 
 	a.accessToken = result.AccessToken
 
@@ -244,15 +245,15 @@ func (a *CachedAuthenticator) Refresh() error {
 		return fmt.Errorf("Root authenticator failed to refresh: %w", err)
 	}
 
-  accessToken, err := a.Authenticator.AccessToken()
-  if err != nil {
-    return fmt.Errorf("Root authenticator failed to provide an access token: %w", err)
-  }
+	accessToken, err := a.Authenticator.AccessToken()
+	if err != nil {
+		return fmt.Errorf("Root authenticator failed to provide an access token: %w", err)
+	}
 
-  err = a.saveAccessToken(accessToken)
-  if err != nil {
-    fmt.Printf("Could not cache access token: %s", err.Error())
-  }
+	err = a.saveAccessToken(accessToken)
+	if err != nil {
+		fmt.Printf("Could not cache access token: %s", err.Error())
+	}
 
 	return nil
 }

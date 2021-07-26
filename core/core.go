@@ -2,6 +2,7 @@ package core
 
 import (
 	"log"
+	"strings"
 )
 
 type Song struct {
@@ -15,13 +16,27 @@ type SongWithLyrics struct {
 	Lyrics []string
 }
 
-func (s *SongWithLyrics) HasLyric(lyric Lyric) bool {
-	panic("HasLyric() not implemented")
+func (s *SongWithLyrics) HasLyric(lyric string) bool {
+  if s == nil {
+    return false
+  }
+	for _, line := range s.Lyrics {
+		if strings.Contains(line, lyric) {
+			return true
+		}
+	}
+
+	totalLyrics := strings.Join(s.Lyrics, " ")
+
+	if strings.Contains(totalLyrics, lyric) {
+		return true
+	}
+
+	// TODO: needs additional checks
+	return false
 }
 
-type Lyric string
-
-func FindSongsWithLyric(lyric Lyric, songProvider SongProvider, lyricProvider LyricProvider) ([]SongWithLyrics, error) {
+func FindSongsWithLyric(lyric string, songProvider SongProvider, lyricProvider LyricProvider) ([]SongWithLyrics, error) {
 	songs := make(chan Song)
 	go songProvider.GetSongs(songs)
 
@@ -31,6 +46,7 @@ func FindSongsWithLyric(lyric Lyric, songProvider SongProvider, lyricProvider Ly
 		songWithLyrics, err := lyricProvider.GetLyrics(&song)
 		if err != nil {
 			log.Printf("Could not get lyrics for song %v: %v", song, err)
+      break
 		}
 		if songWithLyrics.HasLyric(lyric) {
 			result = append(result, *songWithLyrics)

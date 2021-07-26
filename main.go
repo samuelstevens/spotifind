@@ -38,9 +38,9 @@ func main() {
 			CachePath:     "/Users/samstevens/.spotifind.cache",
 		},
 	}
-	lyricProvider := lyrics.SimpleLyricProvider{}
+	lyricProvider := lyrics.AZLyricProvider{}
 
-	songs, err := core.FindSongsWithLyric(core.Lyric(lyric), &songProvider, &lyricProvider)
+	songs, err := core.FindSongsWithLyric(lyric, &songProvider, &lyricProvider)
 	if err != nil {
 		fmt.Printf("%v\n", err)
 		return

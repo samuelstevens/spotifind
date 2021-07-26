@@ -71,7 +71,7 @@ func (p *SimpleSongProvider) requestSongs(url string) ([]core.Song, string, erro
 
 	if resp.StatusCode != 200 {
 		if resp.StatusCode == 401 {
-			fmt.Printf("Unauthorized: %+v\ngoing to refresh token\n", resp)
+			fmt.Printf("Unauthorized: %+v\ngoing to refresh token\n", resp.Header)
 			if err = p.Authenticator.Refresh(); err != nil {
 				return nil, "", err
 			}
@@ -119,7 +119,7 @@ func (p *SimpleSongProvider) GetSongs(out chan core.Song) {
 
 		songs, nextUrl, err = p.requestSongs(nextUrl)
 		if err != nil {
-      fmt.Printf("Error in GetSongs: %s", err.Error())
+			fmt.Printf("Error in GetSongs: %s", err.Error())
 			close(out)
 		}
 
@@ -128,5 +128,5 @@ func (p *SimpleSongProvider) GetSongs(out chan core.Song) {
 		}
 	}
 
-  close(out)
+	close(out)
 }
