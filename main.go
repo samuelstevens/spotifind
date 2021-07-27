@@ -28,13 +28,29 @@ func main() {
 	lyric, err := cli()
 	if err != nil {
 		fmt.Printf("%s\n", err)
+		return
+	}
+
+	if lyric == "" {
+		fmt.Printf("Need to provide a lyric to search for!\n")
+		return
 	}
 
 	fmt.Printf("Searching for songs with lyric '%s'\n", lyric)
 
+	config, err := core.LoadConfig()
+	if err != nil {
+    fmt.Printf("Error loading config: %s\n", err)
+		return
+	}
+
 	songProvider := api.SimpleSongProvider{
 		Authenticator: &auth.CachedAuthenticator{
-			Authenticator: &auth.SimpleCliAuthenticator{},
+			Authenticator: &auth.SimpleCliAuthenticator{
+        ClientId: config.Spotify.ClientId,
+        ClientSecret: config.Spotify.ClientSecret,
+        RedirectUri: config.Spotify.RedirectUri,
+      },
 			CachePath:     "/Users/samstevens/.spotifind.cache",
 		},
 	}

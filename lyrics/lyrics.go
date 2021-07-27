@@ -38,14 +38,20 @@ func (l *AZLyricProvider) findSongUrl(doc *html.Node) (*url.URL, error) {
 			// extract the url
 			for _, attr := range doc.Attr {
 				if attr.Key == "href" {
-          songUrl, err := url.Parse(attr.Val)
-          return songUrl, err
+					songUrl, err := url.Parse(attr.Val)
+					return songUrl, err
 				}
 			}
 		}
 	}
 
 	return nil, fmt.Errorf("Could not find a url in %v", doc)
+}
+
+func (l *AZLyricProvider) findLyrics(doc *html.Node) ([]string, error) {
+	// Look for a div with no class or id.
+	// Then get all the text from within that div and return it as a list of strings
+	return nil, fmt.Errorf("findLyrics is not implemented")
 }
 
 func (l *AZLyricProvider) GetLyrics(song *core.Song) (*core.SongWithLyrics, error) {
@@ -60,6 +66,7 @@ func (l *AZLyricProvider) GetLyrics(song *core.Song) (*core.SongWithLyrics, erro
 
 	searchUrl.RawQuery = query.Encode()
 
+	// log.Printf("Searching for %s using %s\n", song.Formatted(), searchUrl.String())
 	resp, err := http.Get(searchUrl.String())
 	if err != nil {
 		return nil, fmt.Errorf("Could not complete request to AZ lyrics: %w", err)
@@ -75,7 +82,19 @@ func (l *AZLyricProvider) GetLyrics(song *core.Song) (*core.SongWithLyrics, erro
 		return nil, fmt.Errorf("Could not find song url on AZ lyrics: %w", err)
 	}
 
-	fmt.Printf("song url: %s\n", songUrl)
+	// With the song url, now scrape the lyrics from the actual page
+	resp, err = http.Get(songUrl.String())
+	if err != nil {
+		return nil, fmt.Errorf("Could not complete request to AZ lyrics: %w", err)
+	}
 
-	return nil, fmt.Errorf("GetLyrics not implemented")
+	body, err = html.Parse(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("Could not parse AZ song html: %w", err)
+	}
+
+  lyrics, err := l.findLyrics(body)
+	if err != nil {
+		return nil, fmt.Errorf("Could not find lyrics in AZ song html: %w", err)
+	}
 }
