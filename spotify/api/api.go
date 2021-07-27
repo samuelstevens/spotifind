@@ -8,10 +8,6 @@ import (
 	"net/http"
 )
 
-const ClientId = "8c5bfc7c82064304bf0dd0a902618144"
-const ClientSecret = "e9ead86c1d7e4a3cba37a7b0cd18c19e"
-const RedirectUri = "http://spotifind.com/auth"
-
 type Authenticator interface {
 	AccessToken() (string, error)
 	Refresh() error

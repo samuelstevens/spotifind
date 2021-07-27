@@ -21,6 +21,9 @@ func postFormWithTimeout(url string, data url.Values, timeout time.Duration) (*h
 }
 
 type SimpleCliAuthenticator struct {
+	ClientId     string
+	ClientSecret string
+	RedirectUri  string
 	accessToken  string
 	refreshToken string
 }
@@ -35,8 +38,8 @@ func (a *SimpleCliAuthenticator) authenticate() error {
 	state := "123" // should be random value
 
 	query := url.Values{}
-	query.Add("client_id", api.ClientId)
-	query.Add("redirect_uri", api.RedirectUri)
+	query.Add("client_id", a.ClientId)
+	query.Add("redirect_uri", a.RedirectUri)
 	query.Add("response_type", "code")
 	query.Add("state", state)
 	query.Add("scope", "user-library-read")
@@ -64,9 +67,9 @@ func (a *SimpleCliAuthenticator) authenticate() error {
 		"grant_type":    {"authorization_code"},
 		"response_type": {"code"},
 		"code":          {authCode},
-		"redirect_uri":  {api.RedirectUri},
-		"client_id":     {api.ClientId},
-		"client_secret": {api.ClientSecret},
+		"redirect_uri":  {a.RedirectUri},
+		"client_id":     {a.ClientId},
+		"client_secret": {a.ClientSecret},
 	}
 
 	// Request refresh and access tokens
@@ -132,8 +135,8 @@ func (a *SimpleCliAuthenticator) Refresh() error {
 	postBody := url.Values{
 		"grant_type":    {"refresh_token"},
 		"refresh_token": {a.refreshToken},
-		"client_id":     {api.ClientId},
-		"client_secret": {api.ClientSecret},
+		"client_id":     {a.ClientId},
+		"client_secret": {a.ClientSecret},
 	}
 
 	// Request refresh and access tokens
