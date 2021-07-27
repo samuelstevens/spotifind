@@ -47,12 +47,12 @@ func (p *SimpleSongProvider) requestSongs(url string) ([]core.Song, string, erro
 
 	accessToken, err := p.Authenticator.AccessToken()
 	if err != nil {
-		return nil, "", err
+    return nil, "", fmt.Errorf("Error getting access token: %w", err)
 	}
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return nil, "", err
+    return nil, "", fmt.Errorf("Could not create GET request: %w", err)
 	}
 
 	req.Header.Add("Authorization", "Bearer "+accessToken)
@@ -61,7 +61,7 @@ func (p *SimpleSongProvider) requestSongs(url string) ([]core.Song, string, erro
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, "", err
+    return nil, "", fmt.Errorf("Could not complete GET request: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -117,6 +117,7 @@ func (p *SimpleSongProvider) GetSongs(out chan core.Song) {
 		if err != nil {
 			fmt.Printf("Error in GetSongs: %s", err.Error())
 			close(out)
+      return
 		}
 
 		for _, song := range songs {

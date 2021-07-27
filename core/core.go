@@ -20,8 +20,8 @@ func (s *Song) Formatted() string {
 		lastArtist := s.Artists[len(s.Artists)-1]
 		artistStr = fmt.Sprintf("%s and %s", mostArtists, lastArtist)
 	} else {
-    artistStr = s.Artists[0]
-  }
+		artistStr = s.Artists[0]
+	}
 
 	return fmt.Sprintf("'%s' by %s", s.Title, artistStr)
 }
@@ -61,7 +61,6 @@ func FindSongsWithLyric(lyric string, songProvider SongProvider, lyricProvider L
 		songWithLyrics, err := lyricProvider.GetLyrics(&song)
 		if err != nil {
 			log.Printf("Could not get lyrics for song %v: %v", song, err)
-			break
 		}
 		if songWithLyrics.HasLyric(lyric) {
 			result = append(result, *songWithLyrics)

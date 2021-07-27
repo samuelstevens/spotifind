@@ -45,13 +45,47 @@ func (l *AZLyricProvider) findSongUrl(doc *html.Node) (*url.URL, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("Could not find a url in %v", doc)
+	return nil, fmt.Errorf("Could not find a url")
+}
+
+func findDiv(node *html.Node) *html.Node {
+	for child := node.FirstChild; child != nil; child = child.NextSibling {
+		if child.Type == html.ElementNode && child.DataAtom == atom.Div && len(child.Attr) == 0 {
+			return child
+		} else {
+			possibleDiv := findDiv(child)
+			if possibleDiv != nil {
+				return possibleDiv
+			}
+		}
+	}
+	return nil
+}
+
+func extractText(node *html.Node) []string {
+	lyrics := []string{}
+	for child := node.FirstChild; child != nil; child = child.NextSibling {
+		if child.Type == html.TextNode {
+			lyrics = append(lyrics, child.Data)
+		} else {
+			for _, lyric := range extractText(child) {
+				lyrics = append(lyrics, lyric)
+			}
+		}
+	}
+	return lyrics
 }
 
 func (l *AZLyricProvider) findLyrics(doc *html.Node) ([]string, error) {
 	// Look for a div with no class or id.
 	// Then get all the text from within that div and return it as a list of strings
-	return nil, fmt.Errorf("findLyrics is not implemented")
+	div := findDiv(doc)
+
+	if div == nil {
+		return nil, fmt.Errorf("There is no div without any attributes")
+	}
+
+	return extractText(div), nil
 }
 
 func (l *AZLyricProvider) GetLyrics(song *core.Song) (*core.SongWithLyrics, error) {
@@ -79,7 +113,7 @@ func (l *AZLyricProvider) GetLyrics(song *core.Song) (*core.SongWithLyrics, erro
 
 	songUrl, err := l.findSongUrl(body)
 	if err != nil {
-		return nil, fmt.Errorf("Could not find song url on AZ lyrics: %w", err)
+		return nil, fmt.Errorf("Could not find song url on AZ lyrics: %s", searchUrl.String())
 	}
 
 	// With the song url, now scrape the lyrics from the actual page
@@ -93,8 +127,10 @@ func (l *AZLyricProvider) GetLyrics(song *core.Song) (*core.SongWithLyrics, erro
 		return nil, fmt.Errorf("Could not parse AZ song html: %w", err)
 	}
 
-  lyrics, err := l.findLyrics(body)
+	lyrics, err := l.findLyrics(body)
 	if err != nil {
 		return nil, fmt.Errorf("Could not find lyrics in AZ song html: %w", err)
 	}
+
+	return &core.SongWithLyrics{Song: *song, Lyrics: lyrics}, nil
 }
